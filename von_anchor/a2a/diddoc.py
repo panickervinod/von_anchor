@@ -23,7 +23,7 @@ from typing import List, Sequence, Union
 from von_anchor.a2a.docutil import canon_did, canon_ref, resource
 from von_anchor.a2a.publickey import PublicKey, PublicKeyType
 from von_anchor.a2a.service import Service
-from von_anchor.error import AbsentDIDDocItem
+from von_anchor.error import AbsentDIDDocItem, BadDIDDocItem, BadIdentifier
 from von_anchor.util import ok_did
 
 
@@ -92,6 +92,23 @@ class DIDDoc:
         """
 
         return self._service
+
+    def set(self, item: Union[Service, PublicKey]) -> 'DIDDoc':
+        """
+        Add or replace service or public key; return current DIDDoc.
+
+        Raise BadDIDDocItem if input item is neither service nor public key.
+
+        :param item: service or public key to set
+        :return: current DIDDoc
+        """
+
+        if isinstance(item, Service):
+            self.service[item.id] = item
+        elif isinstance(item, PublicKey):
+            self.pubkey[item.id] = item
+        else:
+            raise BadDIDDocItem('Cannot add item {} to DIDDoc on DID {}'.format(item, self.did))
 
     def serialize(self) -> str:
         """
@@ -169,7 +186,7 @@ class DIDDoc:
         """
         Construct DIDDoc object from dict representation.
 
-        Raise BadIdentifier for bad DID.
+        Raise BadIdentifier for bad DID. Raise AbsentDIDDocItem for missing mandatory item.
 
         :param did_doc: DIDDoc dict reprentation.
         :return: DIDDoc from input json.
@@ -178,20 +195,22 @@ class DIDDoc:
         rv = None
         if 'id' in did_doc:
             rv = DIDDoc(did_doc['id'])
-        else:  # get DID to serve as DID document identifier from first public key
-            if 'publicKey' not in did_doc:
-                LOGGER.debug('DIDDoc.deserialize <!< no identifier in DID document')
-                raise AbsentDIDDocItem('No identifier in DID document')
-            for pubkey in did_doc['publicKey']:
-                pubkey_did = canon_did(resource(pubkey['id']))
-                if ok_did(pubkey_did):
-                    rv = DIDDoc(pubkey_did)
-                    break
-            else:
+        else:  # heuristic: get DID to serve as DID document identifier from first OK-looking public key
+            for section in ('publicKey', 'authentication'):
+                if rv is None and section in did_doc:
+                    for key_spec in did_doc[section]:
+                        try:
+                            pubkey_did = canon_did(resource(key_spec.get('id', '')))
+                            if ok_did(pubkey_did):
+                                rv = DIDDoc(pubkey_did)
+                                break
+                        except BadIdentifier:  # no identifier here, move on to next candidate
+                            break
+            if rv is None:
                 LOGGER.debug('DIDDoc.deserialize <!< no identifier in DID document')
                 raise AbsentDIDDocItem('No identifier in DID document')
 
-        for pubkey in did_doc['publicKey']:  # include public keys and authentication keys by reference
+        for pubkey in did_doc.get('publicKey', {}):  # include all public keys, authentication pubkeys by reference
             pubkey_type = PublicKeyType.get(pubkey['type'])
             authn = any(
                 canon_ref(rv.did, ak.get('publicKey', '')) == canon_ref(rv.did, pubkey['id'])
@@ -206,10 +225,7 @@ class DIDDoc:
             rv.pubkey[key.id] = key
 
         for akey in did_doc.get('authentication', {}):  # include embedded authentication keys
-            pk_ref = akey.get('publicKey', None)
-            if pk_ref:
-                pass  # got it already with public keys
-            else:
+            if 'publicKey' not in akey:  # not yet got it with public keys
                 pubkey_type = PublicKeyType.get(akey['type'])
                 key = PublicKey(  # initialization canonicalized id
                     rv.did,

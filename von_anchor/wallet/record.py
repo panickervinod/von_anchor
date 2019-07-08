@@ -17,33 +17,38 @@ limitations under the License.
 
 import logging
 
+from uuid import uuid4
+
 from von_anchor.error import BadRecord
 
+
+TYPE_LINK_SECRET_LABEL = 'link_secret_label'
+TYPE_PAIRWISE = 'pairwise'
 
 LOGGER = logging.getLogger(__name__)
 
 
-class NonSecret:
+class StorageRecord:
     """
     Non-secret wallet record.
     """
 
-    def __init__(self, typ: str, ident: str, value: str, tags: dict = None) -> None:
+    def __init__(self, typ: str, value: str, tags: dict = None, ident: str = None) -> None:
         """
         Initialize non-secret record. Raise BadRecord if input tags are not legitimate indy non-secret record tags.
 
         :param typ: record type - (typ, ident) identifies a non-secret record in the wallet
-        :param ident: record identifier - (typ, ident) identifies a non-secret record in the wallet
         :param value: record value
         :param tags: record tags (metadata) dict
+        :param ident: record identifier - (typ, ident) identifies a non-secret record in the wallet
         """
 
         self._type = typ
-        self._id = ident
+        self._id = ident or uuid4().hex
         self._value = value
 
-        if not NonSecret.ok_tags(tags):
-            LOGGER.debug('NonSecret.__init__ <!< Tags %s must map strings to strings', tags)
+        if not StorageRecord.ok_tags(tags):
+            LOGGER.debug('StorageRecord.__init__ <!< Tags %s must map strings to strings', tags)
             raise BadRecord('Tags {} must map strings to strings'.format(tags))
 
         self._tags = tags or {}  # store trivial tags as empty (for iteration), return as None
@@ -86,6 +91,16 @@ class NonSecret:
 
         return self._id
 
+    @id.setter
+    def id(self, val: str) -> None:
+        """
+        Accessor for record identifier.
+
+        :param val: identifier value
+        """
+
+        self._id = val
+
     @property
     def value(self) -> str:
         """
@@ -97,14 +112,14 @@ class NonSecret:
         return self._value
 
     @value.setter
-    def value(self, value: str) -> None:
+    def value(self, val: str) -> None:
         """
         Accessor for record value.
 
-        :param value: record value
+        :param val: record value
         """
 
-        self._value = value
+        self._value = val
 
     @property
     def tags(self) -> dict:
@@ -117,18 +132,18 @@ class NonSecret:
         return self._tags or None  # store trivial tags as empty (for iteration), return as None
 
     @tags.setter
-    def tags(self, value: str) -> None:
+    def tags(self, val: str) -> None:
         """
         Accessor for record tags (metadata).
 
-        :param value: record tags
+        :param val: record tags
         """
 
-        if not NonSecret.ok_tags(value):
-            LOGGER.debug('NonSecret.__init__ <!< Tags %s must map strings to strings', value)
-            raise BadRecord('Tags {} must map strings to strings'.format(value))
+        if not StorageRecord.ok_tags(val):
+            LOGGER.debug('StorageRecord.__init__ <!< Tags %s must map strings to strings', val)
+            raise BadRecord('Tags {} must map strings to strings'.format(val))
 
-        self._tags = value or {}
+        self._tags = val or {}
 
     @property
     def clear_tags(self) -> dict:
@@ -167,4 +182,4 @@ class NonSecret:
         :return: string representation evaluating to construction call
         """
 
-        return 'NonSecret({}, {}, {}, {})'.format(self.type, self.id, self.value, self.tags)
+        return 'StorageRecord({}, {}, {}, {})'.format(self.type, self.id, self.value, self.tags)

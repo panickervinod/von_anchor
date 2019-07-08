@@ -19,31 +19,42 @@ import pytest
 
 from von_anchor.frill import Ink
 from von_anchor.tails import Tails
-from von_anchor.util import ok_cred_def_id, ok_did, ok_endpoint, ok_rev_reg_id, ok_role, ok_schema_id, ok_wallet_reft
+from von_anchor.util import (
+    ok_cred_def_id,
+    ok_did,
+    ok_endpoint,
+    ok_rev_reg_id,
+    ok_role,
+    ok_schema_id,
+    ok_wallet_reft)
 
 
 @pytest.mark.asyncio
-async def test_box_ids():
+async def test_ids():
     print(Ink.YELLOW('\n\n== Testing Identifier Checks =='))
 
     assert ok_wallet_reft('49ad0727-8663-45ae-a115-12b09860f9c6')
     assert not ok_wallet_reft('Q4zqM7aXqm7gDQkUVLng9I')
     assert not ok_wallet_reft('49ad0727-45ae-a115-12b09860f9c6')
+    print('\n\n== 1 == Wallet referent identifier checks pass OK')
 
-    assert ok_did('Q4zqM7aXqm7gDQkUVLng9h')  # quibble: not technically a box id
-    assert not ok_did('Q4zqM7aXqm7gDQkUVLng9I')
-    assert not ok_did('Q4zqM7aXqm7gDQkUVLng')
+    assert ok_did('Q4zqM7aXqm7gDQkUVLng9h')
+    assert not ok_did('Q4zqM7aXqm7gDQkUVLng9I')  # 'I' not a base58 char
+    assert not ok_did('Q4zqM7aXqm7gDQkUVLng')  # too short
+    print('\n\n== 2 == Distributed identifier checks pass OK')
 
     for value in (None, 'TRUSTEE', 'STEWARD', 'TRUST_ANCHOR', ''):
         assert ok_role(value)
     for value in (123, 'TRUSTY', 'STEW', 'ANCHOR', ' '):
         assert not ok_role(value)
+    print('\n\n== 3 == Role identifier checks pass OK')
 
     assert Tails.ok_hash('Q4zqM7aXqm7gDQkUVLng9hQ4zqM7aXqm7gDQkUVLng9h')
     assert Tails.ok_hash('Q4zqM7aXqm7gDQkUVLng9hQ4zqM7aXqm7gDQkUVLng')
     assert not Tails.ok_hash('Q4zqM7aXqm7gDQkUVLng9h')
     assert not Tails.ok_hash('Q4zqM7aXqm7gDQkUVLng9hQ4zqM7aXqm7gDQkUVLng9hx')
     assert not Tails.ok_hash('Q4zqM7aXqm7gDQkUVLng9hQ4zqM7aXqm7gDQkUVLng90')
+    print('\n\n== 4 == Tails hash identifier checks pass OK')
 
     assert ok_schema_id('Q4zqM7aXqm7gDQkUVLng9h:2:bc-reg:1.0')
     assert not ok_schema_id('Q4zqM7aXqm7gDQkUVLng9h:3:bc-reg:1.0')
@@ -54,6 +65,7 @@ async def test_box_ids():
     assert not ok_schema_id('Q4zqM7aXqm7gDQkUVLng9h:2:bc-reg:')
     assert not ok_schema_id('Q4zqM7aXqm7gDQkUVLng9h:2:bc-reg:1.0a')
     assert not ok_schema_id('Q4zqM7aXqm7gDQkUVLng9I:2:bc-reg:1.0')  # I is not in base58
+    print('\n\n== 5 == Schema identifier checks pass OK')
 
     assert ok_cred_def_id('Q4zqM7aXqm7gDQkUVLng9h:3:CL:18:tag')  # protocol >= 1.4
     assert ok_cred_def_id('Q4zqM7aXqm7gDQkUVLng9h:3:CL:18:tag', 'Q4zqM7aXqm7gDQkUVLng9h')
@@ -67,6 +79,7 @@ async def test_box_ids():
     assert ok_cred_def_id('Q4zqM7aXqm7gDQkUVLng9h:3:CL:18')  # protocol == 1.3
     assert ok_cred_def_id('Q4zqM7aXqm7gDQkUVLng9h:3:CL:18', 'Q4zqM7aXqm7gDQkUVLng9h')
     assert not ok_cred_def_id('Q4zqM7aXqm7gDQkUVLng9h:3:CL:18', 'Xxxxxxxxxxxxxxxxxxxxxx')
+    print('\n\n== 6 == Credential definition identifier checks pass OK')
 
     assert ok_rev_reg_id('LjgpST2rjsoxYegQDRm7EL:4:LjgpST2rjsoxYegQDRm7EL:3:CL:20:tag:CL_ACCUM:1')  # protocol >= 1.4
     assert ok_rev_reg_id(
@@ -85,7 +98,6 @@ async def test_box_ids():
     assert not ok_rev_reg_id('LjgpST2rjsoxYegQDRm7EL:4:LjgpST2rjsoxYegQDRm7EL:3:CL:20:tag:1')
     assert not ok_rev_reg_id('LjgpST2rjsoxYegQDRm7EL:4:LjgpST2rjsoxYegQDRm7EL:3:CL:20:tag:CL_ACCUM:')
     assert not ok_rev_reg_id('LjgpST2rjsoxYegQDRm7EL:4:LjgpST2rjsoxYegQDRm7EL:3:CL:20:tag:CL_ACCUM')
-
     assert ok_rev_reg_id('LjgpST2rjsoxYegQDRm7EL:4:LjgpST2rjsoxYegQDRm7EL:3:CL:20:CL_ACCUM:1')  # protocol == 1.3
     assert ok_rev_reg_id(
         'LjgpST2rjsoxYegQDRm7EL:4:LjgpST2rjsoxYegQDRm7EL:3:CL:20:CL_ACCUM:1',
@@ -93,6 +105,7 @@ async def test_box_ids():
     assert not ok_rev_reg_id(
         'LjgpST2rjsoxYegQDRm7EL:4:LjgpST2rjsoxYegQDRm7EL:3:CL:20:CL_ACCUM:1',
         'Xxxxxxxxxxxxxxxxxxxxxx')
+    print('\n\n== 7 == Revocation registry identifier checks pass OK')
 
     assert ok_endpoint('10.0.0.2:9702')
     assert ok_endpoint('0.0.0.0:0')
@@ -103,3 +116,4 @@ async def test_box_ids():
     assert not ok_endpoint('2.3.4:8080')
     assert not ok_endpoint('1.2.3.4:abc')
     assert not ok_endpoint('1.2.3.4:1234.56')
+    print('\n\n== 8 == Endpoint checks pass OK')

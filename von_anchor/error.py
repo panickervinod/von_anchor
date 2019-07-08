@@ -55,6 +55,8 @@ class ErrorCode(IntEnum):
     AbsentRecord = 3007
     AbsentMessage = 3008
     BadRecord = 3009
+    BadAccess = 3010
+    BadSearch = 3011
 
     # Errors to do with node pool management and operation
     ClosedPool = 4000
@@ -66,6 +68,7 @@ class ErrorCode(IntEnum):
 
     # Errors in DID Doc processing
     AbsentDIDDocItem = 6000
+    BadDIDDocItem = 6001
 
     # JSON validation
     JSONValidation = 9000
@@ -511,6 +514,36 @@ class BadRecord(VonAnchorError):
         super().__init__(ErrorCode.BadRecord, message)
 
 
+class BadAccess(VonAnchorError):
+    """
+    Wallet access credentials value is incorrect.
+    """
+
+    def __init__(self, message: str):
+        """
+        Initialize on message.
+
+        :param message: error message
+        """
+
+        super().__init__(ErrorCode.BadAccess, message)
+
+
+class BadSearch(VonAnchorError):
+    """
+    Search operation failed.
+    """
+
+    def __init__(self, message: str):
+        """
+        Initialize on message.
+
+        :param message: error message
+        """
+
+        super().__init__(ErrorCode.BadSearch, message)
+
+
 class ClosedPool(VonAnchorError):
     """
     Pool needs to be open.
@@ -524,21 +557,6 @@ class ClosedPool(VonAnchorError):
         """
 
         super().__init__(ErrorCode.ClosedPool, message)
-
-
-class AbsentGenesis(VonAnchorError):
-    """
-    Specified genesis transaction file does not exist.
-    """
-
-    def __init__(self, message: str):
-        """
-        Initialize on message.
-
-        :param message: error message
-        """
-
-        super().__init__(ErrorCode.AbsentGenesis, message)
 
 
 class AbsentPool(VonAnchorError):
@@ -588,7 +606,7 @@ class CacheIndex(VonAnchorError):
 
 class AbsentDIDDocItem(VonAnchorError):
     """
-    Absent identifier in DID document.
+    Absent item in DID document.
     """
 
     def __init__(self, message: str):
@@ -599,6 +617,21 @@ class AbsentDIDDocItem(VonAnchorError):
         """
 
         super().__init__(ErrorCode.AbsentDIDDocItem, message)
+
+
+class BadDIDDocItem(VonAnchorError):
+    """
+    Bad item in DID document processing.
+    """
+
+    def __init__(self, message: str):
+        """
+        Initialize on message.
+
+        :param message: error message
+        """
+
+        super().__init__(ErrorCode.BadDIDDocItem, message)
 
 
 class JSONValidation(VonAnchorError):

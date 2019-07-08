@@ -18,19 +18,14 @@ limitations under the License.
 import json
 import re
 
-from collections import namedtuple
 from copy import deepcopy
 from typing import Sequence, Union
 
-from base58 import alphabet
+from base58 import alphabet, b58decode
 
 from von_anchor.error import BadIdentifier
 from von_anchor.nodepool import Protocol
 from von_anchor.indytween import Role, Predicate, SchemaKey
-
-
-NodePoolData = namedtuple('NodePoolData', 'name genesis_txn_path')  # for op configuration
-AnchorData = namedtuple('AnchorData', 'role seed wallet_name wallet_type wallet_key')
 
 
 B58 = alphabet if isinstance(alphabet, str) else alphabet.decode('ascii')
@@ -93,7 +88,10 @@ def ok_did(token: str) -> bool:
     :return: whether input token looks like a valid schema identifier
     """
 
-    return bool(re.match('[{}]{{21,22}}$'.format(B58), token or ''))
+    try:
+        return len(b58decode(token)) == 16 if token else False
+    except ValueError:
+        return False
 
 
 def ok_schema_id(token: str) -> bool:
@@ -585,7 +583,7 @@ def creds_display(creds: Union[dict, Sequence[dict]], filt: dict = None, filt_df
             ...
         }
 
-    :param: filt_dflt_incl: whether to include (True) all attributes for schema that filter does not identify
+    :param filt_dflt_incl: whether to include (True) all attributes for schema that filter does not identify
         or to exclude (False) all such attributes
     :return: human-legible dict mapping credential identifiers to human-readable credential briefs
         (not proper indy-sdk creds structures) for creds matching input filter
@@ -916,7 +914,7 @@ def revealed_attrs(proof: dict) -> dict:
     Fetch revealed attributes from input proof and return dict mapping credential definition identifiers
     to dicts, each dict mapping attribute names to (raw) values, for processing in further creds downstream.
 
-    :param: indy-sdk proof as dict
+    :param proof: indy-sdk proof as dict
     :return: dict mapping cred-ids to dicts, each mapping revealed attribute names to (raw) values
     """
 

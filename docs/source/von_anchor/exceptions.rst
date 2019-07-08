@@ -5,9 +5,8 @@ Exceptions
 This section outlines the Exception descendants that the von_anchor package defines. Each exception class descends from VonAnchorError, which itself inherits Exception, and each exception class encapsulates a simple error code and message as per the table.
 
 .. csv-table::
-   :header: "Exception Class", "Error Code", "Semantics", "Example"
-   :widths: 20, 15, 50, 50
-
+    :header: "Exception Class", "Error Code", "Semantics", "Example"
+    :widths: 20, 15, 50, 50
 
     "CredentialFocus", "1003", "Anchor attempting to prove zero credentials, or more than one credentials per cred def", "Actuator posts a get-proof form with credential filter resolving to multiple credentials for a single credential definition, or to no credentials at all"
     "AbsentLinkSecret", "1005", "Anchor attempts to perform operation requiring link secret which is not set", "Actuator calls holder-prover anchor to create credential request, but anchor has no link secret set"
@@ -35,10 +34,15 @@ This section outlines the Exception descendants that the von_anchor package defi
     "ExtantRecord", "3006", "Attempted to overwrite an existing wallet record", "Anchor attempts to write local DID that already exists"
     "AbsentRecord", "3007", "No such wallet record", "Anchor attempts to get metadata for pairwise DID that does not exist"
     "AbsentMessage", "3008", "Message is empty", "Anchor attempts to encrypt empty message"
+    "BadRecord", "3009", "Record as specified is not valid for wallet storage", "Non-secrets tags do not comply with indy specification"
+    "BadAccess", "3010", "Wallet access credentials value is incorrect", "Anchor attempts to open a wallet with incorrect access credentials value"
+    "BadSearch", "3011", "Non-secret storage record search cannot proceed", "Anchor attempts to fetch the next batch of results from a search that is closed"
     "ClosedPool", "4000", "Pool is closed but operation needs it open", "Anchor attempts to call a node pool for ledger data, but the pool is not open"
-    "AbsentGenesis", "4001", "Pool creation requires genesis transactions but specified location does not exist", "Actuator attempts to create new pool with non-file genesis transaction path"
     "AbsentPool", "4002", "Operation requires node pool, but none specified", "Anchor attempts ledger transaction but has no node pool"
+    "ExtantPool", "4003", "Pool already exists", "Actuator attempts to create configuration for pool that already exists"
     "CacheIndex", "5000", "Schema cache, credential definition cache, or revocation cache has no entry at given index", "Anchor attempts to retrieve schema for a transaction number or schema key that it has not yet cached"
+    "AbsentDIDDocItem", "6000", "Absent item in DID document", "Actuator attempts to parse DID document with no DID as identifier"
+    "BadDIDDocItem", "6001", "Bad item in DID document processing", "Actuator attempts to set malformed public key in DOD document"
     "JSONValidation", "9000", "JSON schema is corrupt or JSON form does not match schema", "Node pool configuration dict missing required properties"
 
 Table: Exception Particulars

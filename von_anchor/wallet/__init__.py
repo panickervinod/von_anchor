@@ -15,8 +15,8 @@ limitations under the License.
 """
 
 
-from .didinfo import DIDInfo
-from .endpointinfo import EndpointInfo
-from .nonsecret import NonSecret
-from .pairwise import non_secret2pairwise_info, PairwiseInfo, pairwise_info2tags, TYPE_PAIRWISE
-from .wallet import register_wallet_storage_library, Wallet
+from .info import DIDInfo, EndpointInfo, KeyInfo, PairwiseInfo, pairwise_info2tags, storage_record2pairwise_info
+from .record import StorageRecord
+from .search import StorageRecordSearch
+from .wallet import Wallet
+from .manager import WalletManager

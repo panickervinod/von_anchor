@@ -33,11 +33,12 @@ from von_anchor.util import (
     rev_reg_id2tag,
     schema_id,
     schema_key)
-from von_anchor.wallet import Wallet
+from von_anchor.wallet import Wallet, WalletManager
 
 
 def rrbx_prox():
     return int(subprocess.check_output('ps -ef | grep rrbuilder.py | wc -l', stderr=subprocess.STDOUT, shell=True))
+
 
 async def beep(msg, n):
     print('(waiting for {})'.format(msg))
@@ -45,6 +46,7 @@ async def beep(msg, n):
         await asyncio.sleep(1)
         print('.', end='', flush=True)
     print()
+
 
 @pytest.mark.skipif(False, reason='short-circuiting')
 @pytest.mark.asyncio
@@ -61,12 +63,13 @@ async def test_anchors_tails_load(
     await RevRegBuilder.stop(WALLET_NAME)  # in case of re-run
 
     # Set up node pool ledger config and wallets, open pool, init anchors
-    manager = NodePoolManager()
-    if pool_name not in await manager.list():
-        await manager.add_config(pool_name, pool_genesis_txn_data)
-    pool = manager.get(pool_name)
+    p_mgr = NodePoolManager()
+    if pool_name not in await p_mgr.list():
+        await p_mgr.add_config(pool_name, pool_genesis_txn_data)
+    pool = p_mgr.get(pool_name)
     await pool.open()
 
+    w_mgr = WalletManager()
     wallets = {
         'trustee-anchor': {
             'seed': seed_trustee1,
@@ -84,11 +87,13 @@ async def test_anchors_tails_load(
         }
     }
     for (name, wdata) in wallets.items():
-        wdata['wallet'] = Wallet(name, None, wdata['config'], wdata['access_creds'])
         try:
-            await wdata['wallet'].create(wdata['seed'])
+            wdata['wallet'] = await w_mgr.create({
+                'id': name,
+                'seed': wdata['seed']
+            })
         except ExtantWallet:
-            pass
+            wdata['wallet'] = w_mgr.get({'id': name})
         finally:
             await wdata['wallet'].open()
 
@@ -146,22 +151,15 @@ async def test_anchors_tails_load(
     assert schema  # should exist now
     print('\n\n== 2 == SCHEMA [{} v{}]: {}'.format(S_KEY.name, S_KEY.version, ppjson(schema)))
 
-    '''
-    # wait for rev reg builder to spin up?
-    if rrbx:
-        while not isfile(join(san._dir_tails_sentinel, '.pid')):
-            await asyncio.sleep(1)
-    '''
-
     # Setup link secret for creation of cred req or proof
     await san.create_link_secret('LinkSecret')
 
     # SRI anchor create, store, publish cred definitions to ledger; create cred offers
-    await san.send_cred_def(S_ID, revocation=True)
+    await san.send_cred_def(S_ID, revo=True)
     cd_id = cred_def_id(S_KEY.origin_did, schema['seqNo'], pool.protocol)
 
-    assert ((not Tails.unlinked(san._dir_tails)) and
-        [f for f in Tails.links(san._dir_tails, san.did) if cd_id in f])
+    assert ((not Tails.unlinked(san.dir_tails)) and
+        [f for f in Tails.links(san.dir_tails, san.did) if cd_id in f])
 
     cred_def_json = await san.get_cred_def(cd_id)  # ought to exist now
     cred_def = json.loads(cred_def_json)
@@ -180,7 +178,7 @@ async def test_anchors_tails_load(
 
     (cred_req_json, cred_req_metadata_json) = await san.create_cred_req(cred_offer_json, cd_id)
     cred_req = json.loads(cred_req_json)
-    print('\n\n== 4 == Credential request [{} v{}]: metadata {}, cred {}'.format(
+    print('\n\n== 4 == Credential request [{} v{}]: metadata {}, cred-req {}'.format(
         S_KEY.name,
         S_KEY.version,
         ppjson(cred_req_metadata_json),
@@ -202,7 +200,7 @@ async def test_anchors_tails_load(
                 'remainder': str(number % 100)
             })
         elapsed = swatch.mark()
-        tag = rev_reg_id2tag(Tails.current_rev_reg_id(san._dir_tails, cd_id))
+        tag = rev_reg_id2tag(Tails.current_rev_reg_id(san.dir_tails, cd_id))
         if tag not in optima:
             optima[tag] = (elapsed, elapsed)
         else:

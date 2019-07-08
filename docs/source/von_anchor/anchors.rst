@@ -60,9 +60,9 @@ The ``Origin`` class exposes ``send_schema()`` to fulfill calls to send a schema
 RevRegBuilder
 ****************************************************
 
-The ``RevRegBuilder`` class builds revocation registries. It is tightly bound as the parent class for ``Issuer``: conceptually, every issuer is a revocation registry builder.
+The ``RevRegBuilder`` class builds revocation registries. Its purpose is to serve an ``Issuer`` instance, which aggregates and delegates to it.
 
-Its initializer method sets up key tails directory locations and starts the revocation registry builder if necessary. The design admits two postures for a revocation registry builder: internal or external to its ``Issuer`` instance. Both configurations use ``RevRegBuilder`` methods to initialize and to build revocation registries, and ``RevRegBuilder`` utilities to return locations in the tails tree for issuer implementation.
+Its initializer method sets up key tails directory locations and starts the revocation registry builder if necessary. The design admits two postures for a revocation registry builder: internal or external to its aggregating ``Issuer`` instance. Both configurations use ``RevRegBuilder`` methods to initialize and to build revocation registries, and ``RevRegBuilder`` utilities to return locations in the tails tree for issuer implementation.
 
 Actuators need not call  ``_create_rev_reg()`` method; the issuer uses it internally as required to create new revocation registries and tails files, and to synchronize their associations.
 
@@ -108,7 +108,11 @@ The figure illustrates the process of starting and stopping an external revocati
 Issuer
 ****************************************************
 
-The Issuer class inherits from ``RevRegBuilder``. It has its own ``open()`` method to synchronize its tails tree content (revocation registry identifiers to tails files). Actuators need not call its ``_sync_revoc_for_issue()`` methods; ``Issuer`` uses them internally as required to synchronize tails file associations on startup.
+The ``Issuer`` class issues credential definitions, against which it issues credentials - an Issuer can also revoke any credential it issues.
+
+Its initializer aggregates a ``RevRegBuilder`` instance, to which it delegates to build revocation registries.
+
+The class has its own ``open()`` method to synchronize its tails tree content (revocation registry identifiers to tails files). Actuators need not call its ``_sync_revoc_for_issue()`` methods; ``Issuer`` uses them internally as required to synchronize tails file associations on startup.
 
 Housekeeping Operations
 ===================================
@@ -148,7 +152,7 @@ Its  ``revoke_cred()`` method revokes a credential by revocation registry identi
 HolderProver
 ****************************************************
 
-The HolderProver class has its own initializer method to set up a place holder for its link secret, to set its directory for cache archives, and to set any configuration parameters. Actuators need not call its ``_sync_revoc_for_proof()`` nor ``_build_rr_delta_json()`` methods; the implementation uses them internally as required to create manage tails file associations, and to build revocation registry delta structures (as a callback per :ref:`revo-cache-entry`).
+The HolderProver class has its own initializer method to set its directory for cache archives and to set any configuration parameters. Actuators need not call its ``_sync_revoc_for_proof()`` nor ``_build_rr_delta_json()`` methods; the implementation uses them internally as required to create manage tails file associations, and to build revocation registry delta structures (as a callback per :ref:`revo-cache-entry`).
 
 It implements properties for access to its configuration and cache directory.
 
@@ -224,9 +228,11 @@ A credentials (in indy-sdk, "credentials for proof request") structure, is a dic
 Methods Implementing Operations with Credential-Like Data
 ==============================================================
 
-Its  ``create_cred_req()`` method creates a credential request for an input credential offer and credential definition. It returns the credential request and its  associated metadata.
+Its  ``create_cred_req()`` method creates a credential request for an input credential offer and credential definition, using a specified local DID (from a pairwise relation) or defaulting to the anchor DID. It returns the credential request and its associated metadata.
 
-Its  ``store_cred()`` method stores a credential in the wallet. It returns the credential identifier as it appears in the wallet.
+Its  ``store_cred()`` method stores a credential in the wallet. It returns the credential identifier as it appears in the wallet. Note that the credential attribute tagging policy :ref:`catpol` specifies the credential attributes for which the indy-sdk builds WQL searchable tags in the wallet on storage.
+
+Its  ``delete_cred()`` method deletes a credential in the wallet by its wallet credential identifier.
 
 Its ``build_req_creds_json()`` helper builds an indy-sdk requested credentials structure. It takes an indy-sdk credentials structure and an optional filter to apply, plus an additional optional boolean specifying default behaviour for that filter as follows:
 
@@ -250,6 +256,17 @@ Its  ``get_cred_briefs_by_proof_req_q()`` method takes a proof request and a str
 
 Note that a credential's revocation status does not affect whether any anchor returns it via the methods above.
 
+.. _catpol:
+
+Methods Operating on Credential Attribute Tagging Policy
+========================================================
+
+Credential attribute tagging policy specifies the attributes to build into WQL searchable tags on credential storage -- the default policy marks all attributes as taggable. For each taggable attribute (by credential definition), the indy-sdk implementation stores a marker tag and a value tag per credential.
+
+The ``set_cred_attr_tag_policy()`` method sets (or clears) a credential attribute tagging policy for a credential definition identifier. If the call specifies retroactive operation, the method directs indy-sdk to visit all existing credentials on the credential definition and rebuild their tags to the specified policy: note that this could be an expensive operation.
+
+The ``get_cred_attr_tag_policy()`` method returns the current policy as a JSON list of attributes marked for tagging. If there is no current policy, it returns a JSON null.
+
 Proof Methods
 ===================================
 
@@ -260,7 +277,7 @@ Its  ``create_proof()`` method creates a proof for input indy-sdk proof request,
 Reset
 -----------------------------------------
 
-Its  ``reset_wallet()`` method allows the service wrapper layer to delete the wallet and start a new one of the same type, setting link secret to the prior value.
+Its  ``reset_wallet()`` method allows the service wrapper layer to delete the wallet and start a new one of the same type, setting link secret to the prior value. Its implementation delegates to the wallet manager's ``reset()`` method (:ref:`wallet-manager`).
 
 Verifier
 ****************************************************
@@ -280,7 +297,7 @@ The class's ``build_proof_req_json()`` helper takes a specification construct. I
 - ``'attrs'`` to a list of attributes of interest
     - if the key is absent, request all attributes
     - if the key is present but the value is null or empty, request no attributes (i.e., only predicates)
-- ``'>'``, ``'>='``, ``'<='``, ``'<'`` to a dict of bound values to request (by predicate) per attribute
+- ``'>'``, ``'>='``, ``'<='``, ``'<'`` to a dict of bound values to request (by predicate) per attribute (at present, indy-sdk supports only ``'>='`` predicates)
     - if such a key is absent or its value is null or empty, request no such predicates
 - ``'interval'`` to a single timestamp of interest, in integer epoch seconds, or to a pair of integers marking the boundaries of a non-revocation interval; if absent,
     - request the present moment if the credential definition supports revocation,
@@ -303,4 +320,14 @@ Because these operations could monopolize the (shared) caches, it is best for an
 Demonstration Anchor Classes
 ****************************************************
 
-The ``TrusteeAnchor``, ``SRIAnchor``, ``OrgBookAnchor``, ``OrgHubAnchor``, ``BCRegistrarAnchor``, and ``NominalAnchor`` demonstration anchors of file ``von_anchor/anchor/demo.py`` use the derived mixins above to create their respective demonstration VON anchor classes.
+The ``TrusteeAnchor``, ``ProctorAnchor``, ``OrgBookAnchor``, ``OrgHubAnchor``, ``RegistrarAnchor``, and ``NominalAnchor`` demonstration anchors of file ``von_anchor/anchor/demo.py`` use the derived mixins above to create their respective demonstration VON anchor classes:
+
+.. csv-table::
+    :header: "Demonstration Class", "Roles", "Notes"
+
+    "TrusteeAnchor", "Trustee", "Writes nyms to ledger"
+    "ProctorAnchor", "Origin, Issuer, Verifier", "Originates schemata, issues credentials, and verifies presentations"
+    "OrgBookAnchor", "Holder-Prover", "Stores credentials"
+    "OrgHubAnchor", "Origin, Issuer, Holder-Prover, Verifier", "Acts as both OrgBook for community and Proctor for its own program"
+    "RegistrarAnchor", "Origin, Issuer", "Originates schemata, issues credentials"
+    "NominalAnchor", "Base", "Uses ledger primarily for cryptonym access to perform cryptographic operations"

@@ -26,7 +26,6 @@ from von_anchor.canon import raw
 SchemaKey = namedtuple('SchemaKey', 'origin_did name version')
 Relation = namedtuple('Relation', 'fortran wql math yes no')
 
-
 I32_BOUND = 2**31
 
 
@@ -50,11 +49,7 @@ def encode(orig: Any) -> str:
     except (ValueError, TypeError):
         pass
 
-    rv = int.from_bytes(sha256(raw(orig).encode()).digest(), 'big')
-    while -I32_BOUND <= rv < I32_BOUND:
-        rv = int.from_bytes(sha256(rv.encode()).digest(), 'big')  # sha256 maps no 32-bit int to another: terminates
-
-    return str(rv)
+    return str(int.from_bytes(sha256(raw(orig).encode()).digest(), 'big'))  # OK for indy: sha256 changes all str(i32)s
 
 
 def cred_attr_value(orig: Any) -> dict:

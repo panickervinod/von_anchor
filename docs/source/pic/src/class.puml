@@ -91,32 +91,56 @@ class EndpointCache {
 
 class ArchivableCaches {
     {static} +clear()
-    {static} +archive()
+    {static} +archdiive()
     {static} +parse()
     {static} +purge_archives()
 }
 
+class WalletManager {
+    {static} +register_storage_library()
+    -_defaults
+    +default_storage_type
+    +default_freshness_time
+    +default_auto_remove
+    +default_access
+    -_config2indy()
+    +create()
+    +get()
+    +export_wallet()
+    +import_wallet()
+    +reset()
+    +remove()
+}
+
 class Wallet {
-    -_seed
-    -_next_seed
     +name
     +handle
     +config
     +auto_remove
+    +access
     +access_creds
     +storage_type
     +did
     +verkey
     +create_local_did()
-    +get_local_did_infos()
-    +get_local_did_info()
+    +get_local_dids()
+    +get_local_did()
     +get_anchor_did()
-    +create()
+    +create_link_secret()
+    -_write_link_secret_label()
+    +get_link_secret_label()
     +open()
     +close()
+    +remove()
+    +create_signing_key()
+    +get_signing_key()
+    +replace_signing_key_metadata()
     +write_pairwise()
     +delete_pairwise()
     +get_pairwise()
+    +write_non_secret()
+    +delete_non_secret()
+    +get_non_secret()
     +encrypt()
     +decrypt()
     +sign()
@@ -125,13 +149,39 @@ class Wallet {
     +unpack()
     +reseed_init()
     +reseed_apply()
-    +remove()
+}
+
+class KeyInfo {
+    +verkey
+    +metadata
 }
 
 class DIDInfo {
     +did
     +verkey
     +metadata
+}
+
+class StorageRecord {
+    {static} +ok_tags()
+    +type
+    +id
+    +value
+    +tags
+    +clear_tags
+    +encr_tags
+}
+
+class StorageRecordSearch {
+    {static} +OPTIONS_JSON
+    -_wallet
+    -_type
+    -_query_json
+    -_handle
+    +opened
+    +open()
+    +fetch()
+    +close()
 }
 
 class PairwiseInfo {
@@ -172,7 +222,6 @@ class NodePool {
     +handle
     +config
     +protocol
-    +cache_id
     +open()
     +close()
     +refresh()
@@ -235,7 +284,8 @@ class RevRegBuilder {
     {static} +dir_tails()
     {static} +dir_tails_sentinel()
     -_start_data_json()
-    -_create_rev_reg()
+    +external
+    +_create_rev_reg()
     +dir_tails_top()
     +dir_tails_target()
     +serve()
@@ -252,6 +302,10 @@ class Issuer {
     -_send_rev_reg_def()
     -_set_rev_reg()
     -_sync_revoc_for_issue()
+    -_create_cred_def()
+    +rrbx
+    +rrb
+    +rrb()
     +open()
     +path_tails()
     +send_cred_def()
@@ -264,9 +318,9 @@ class Issuer {
 class HolderProver {
     +config
     +dir_cache
-    -_link_secret
     -_sync_revoc_for_proof()
     -_build_rr_delta_json()
+    -_assert_link_secret()
     +build_req_creds_json()
     +dir_tails()
     +open()
@@ -275,7 +329,10 @@ class HolderProver {
     +offline_intervals()
     +create_link_secret()
     +create_cred_req()
+    +set_cred_attr_tag_policy()
+    +get_cred_attr_tag_policy()
     +store_cred()
+    +delete_cred()
     +load_cache_for_proof()
     +get_box_ids_json()
     +get_cred_infos_by_q()
@@ -306,11 +363,11 @@ class NominalAnchor {
     {static} +least_role()
 }
 
-class SRIAnchor {
+class ProctorAnchor {
     {static} +least_role()
 }
 
-class BCRegistrarAnchor {
+class RegistrarAnchor {
 }
 
 class OrgBookAnchor {
@@ -347,11 +404,13 @@ class Service {
 
 class DIDDoc {
     +did
-    +verkeys
-    +authnkeys
-    +services
+    +pubkey
+    +authnkey
+    +service
+    +set()
     +to_json()
     +serialize()
+    +add_service_pubkeys()
     {static} +from_json()
     {static} +deserialize()
 }
@@ -374,8 +433,14 @@ RevoCacheEntry -up-> Tails
 RevoCacheEntry "2" *-down- "n" RevRegUpdateFrame
 RevocationCache -> RevoCacheEntry
 
+WalletManager .left.> Wallet
+
+Wallet --> KeyInfo
 Wallet --> DIDInfo
 Wallet --> PairwiseInfo
+Wallet --> StorageRecord
+
+StorageRecordSearch *-- Wallet
 
 BaseAnchor --> EndpointInfo
 
@@ -391,14 +456,15 @@ BaseAnchor <|-right- NominalAnchor
 
 AnchorSmith <|-down- TrusteeAnchor
 BaseAnchor <|-down- RevRegBuilder
-RevRegBuilder <-- Issuer
+BaseAnchor <-- Issuer
+Issuer *- RevRegBuilder
 
-Origin <|-left- SRIAnchor
-Issuer <|-left- SRIAnchor
-Verifier <|-right- SRIAnchor
+Origin <|-left- ProctorAnchor
+Issuer <|-left- ProctorAnchor
+Verifier <|-right- ProctorAnchor
 
-Issuer <|-up- BCRegistrarAnchor
-Origin <|-up- BCRegistrarAnchor
+Issuer <|-up- RegistrarAnchor
+Origin <|-up- RegistrarAnchor
 
 HolderProver <|-down- OrgBookAnchor
 
@@ -419,7 +485,7 @@ AnchorSmith ..> Role
 Verifier ..> Role
 NominalAnchor ..> Role
 OrgHubAnchor ..> Role
-SRIAnchor ..> Role
+ProctorAnchor ..> Role
 
 PublicKey "1" *-- "1" PublicKeyType
 DIDDoc "1" *-- "n" PublicKey
